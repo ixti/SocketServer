@@ -582,6 +582,7 @@ class SocketServer
                     if ($this->__open($conn_id, $conn)) {
                         $pool[$conn_id] = $conn;
                     } else {
+                        $this->__close($conn_id);
                         @socket_close($conn);
                     }
                 }

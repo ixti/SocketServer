@@ -23,6 +23,11 @@
  * @license http://www.gnu.org/licenses/ GPLv3
  */
 
+set_include_path(
+    dirname(realpath(__FILE__)) . '/lib' . PATH_SEPARATOR .
+    get_include_path()
+);
+
 
 /**
  * SocketServer
@@ -68,6 +73,7 @@ function my_handler($request, $id)
 function my_open_handler($id, $addr, $port = null)
 {
     echo sprintf('New connection [%d] arrived from %s:%d', $id, $addr, $port) . "\n";
+    return ('127.0.0.1' == $addr);
 }
 
 
