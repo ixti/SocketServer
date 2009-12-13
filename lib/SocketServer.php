@@ -103,6 +103,33 @@ class SocketServer
     private $__motd = null;
 
 
+    /**
+     * Socket read per time amount
+     *
+     * @see http://www.phpclasses.org/discuss/package/5758/thread/2/
+     * @var integer
+     */
+    private $__readAmount = 2048;
+
+
+    /**
+     * Socket read mode
+     *
+     * @see http://www.phpclasses.org/discuss/package/5758/thread/2/
+     * @var integer
+     */
+    private $__readMode = PHP_NORMAL_READ;
+
+
+    /**
+     * Auto-close after response mode.
+     *
+     * @link http://www.phpclasses.org/discuss/package/5758/thread/3/
+     * @var boolean
+     */
+    private $__autoClose = false;
+
+
 
     /**
      * Class constructor.
@@ -178,6 +205,43 @@ class SocketServer
         }
         
         throw new Exception($msg);
+    }
+
+
+    /**
+     * Sets socket_read limit
+     *
+     * @param integer $limit
+     */
+    public function setReadAmount($limit)
+    {
+        $this->__readAmount = $limit * 1;
+    }
+
+
+    /**
+     * Sets socket_read mode.
+     *
+     * @see http://www.phpclasses.org/discuss/package/5758/thread/2/
+     * @param integer $mode PHP_NORMAL_READ or PHP_BINARY_READ
+     */
+    public function setReadMode($mode)
+    {
+        if (PHP_NORMAL_READ !== $mode && PHP_BINARY_READ !== $mode) {
+            $this->__raiseError('Unknown read mode.');
+        }
+    }
+
+
+    /**
+     * Sets auto-close after response mode.
+     *
+     * @link http://www.phpclasses.org/discuss/package/5758/thread/3/
+     * @param boolean $autoClose
+     */
+    public function setAutoClose($autoClose = true)
+    {
+        $this->__autoClose = (boolean) $autoClose;
     }
 
 
@@ -324,7 +388,7 @@ class SocketServer
             $addr = null;
             $port = null;
             socket_getpeername($socket, $addr, $port);
-            call_user_func($this->__onOpen, $id, $addr, $port);
+            return call_user_func($this->__onOpen, $id, $addr, $port);
         }
     }
 
@@ -515,8 +579,11 @@ class SocketServer
 
                     $conn_id = (integer) $conn;
 
-                    $pool[$conn_id] = $conn;
-                    $this->__open($conn_id, $conn);
+                    if ($this->__open($conn_id, $conn)) {
+                        $pool[$conn_id] = $conn;
+                    } else {
+                        @socket_close($conn);
+                    }
                 }
                 unset($active[array_search($this->__socket, $active)]);
             }
@@ -524,7 +591,7 @@ class SocketServer
             // Handle every active client
             foreach ($active as $conn) {
                 $conn_id = (integer) $conn;
-                $request = @socket_read($conn, 2048, PHP_NORMAL_READ);
+                $request = @socket_read($conn, $this->__readAmount, $this->__readMode);
 
                 // If connection is closed, mark it for cleanup and continue
                 if (false === $request) {
@@ -568,6 +635,10 @@ class SocketServer
                 $test = @socket_write($conn, $response, strlen($response));
                 if (false === $test) {
                     $this->__writeError($conn_id);
+                }
+
+                if ($this->__autoClose) {
+                    @socket_close($conn);
                 }
             }
         }
